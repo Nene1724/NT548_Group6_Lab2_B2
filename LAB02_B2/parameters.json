@@ -1,0 +1,50 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "nt548-lab02"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "VpcCIDR",
+    "ParameterValue": "10.0.0.0/16"
+  },
+  {
+    "ParameterKey": "PublicSubnetCIDR",
+    "ParameterValue": "10.0.1.0/24"
+  },
+  {
+    "ParameterKey": "PrivateSubnetCIDR",
+    "ParameterValue": "10.0.2.0/24"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "nt548_group6"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t3.micro"
+  },
+  {
+    "ParameterKey": "OperatorIP",
+    "ParameterValue": "172.20.10.3/32"
+  },
+  {
+    "ParameterKey": "LatestAmiId",
+    "ParameterValue": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
+  },
+  {
+    "ParameterKey": "BastionInstanceName",
+    "ParameterValue": "lab02-public"
+  },
+  {
+    "ParameterKey": "PrivateInstanceName",
+    "ParameterValue": "lab02-private"
+  },
+  {
+    "ParameterKey": "FlowLogsRetentionInDays",
+    "ParameterValue": "365"
+  }
+]

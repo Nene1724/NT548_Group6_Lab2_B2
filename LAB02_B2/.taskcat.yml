@@ -1,0 +1,9 @@
+project:
+  name: __TASKCAT_PROJECT__
+  regions:
+    - __TASKCAT_REGION__
+  s3_bucket: __TASKCAT_BUCKET__
+tests:
+  infrastructure:
+    template: main.yaml
+    parameter_input: parameters.json

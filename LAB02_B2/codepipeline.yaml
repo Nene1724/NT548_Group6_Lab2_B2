@@ -80,7 +80,7 @@ Parameters:
 
   RepositoryId:
     Type: String
-    Default: your-org/nt548-lab02
+    Default: Nene1724/NT548_Group6_Lab2_B2
     Description: >
       Repository identifier in the form owner/name (for GitHub) or the CodeCommit repository name.
 

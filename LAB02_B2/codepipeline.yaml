@@ -306,7 +306,6 @@ Resources:
                 TemplatePath: !Sub 'BuildArtifact::${CloudFormationTemplateFile}'
                 TemplateConfiguration: !Sub 'BuildArtifact::${CloudFormationParametersFile}'
                 Capabilities: CAPABILITY_NAMED_IAM
-                ReplaceOnFailure: false
               InputArtifacts:
                 - Name: BuildArtifact
 

@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/goformation/master/schema/codepipeline.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/goformation/master/schema/cloudformation.schema.json
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   NT548 LAB02 B2 - Continuous delivery pipeline with AWS CodePipeline and CodeBuild to validate and deploy CloudFormation infrastructure.
@@ -80,7 +80,7 @@ Parameters:
 
   RepositoryId:
     Type: String
-    Default: your-org/nt548-lab02
+    Default: Nene1724/NT548_Group6_Lab2_B2
     Description: >
       Repository identifier in the form owner/name (for GitHub) or the CodeCommit repository name.
 
@@ -127,8 +127,6 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      VersioningConfiguration:
-        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -143,14 +141,6 @@ Resources:
           Value: !Ref ProjectName
         - Key: Environment
           Value: !Ref Environment
-        - Key: Purpose
-          Value: codepipeline-artifacts
-
-  CodeBuildLogsGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub '/aws/codebuild/${ProjectName}-${Environment}-validate'
-      RetentionInDays: 90
 
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
@@ -161,71 +151,9 @@ Resources:
           - Effect: Allow
             Principal:
               Service: codebuild.amazonaws.com
-            Action: 'sts:AssumeRole'
+            Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
-      Policies:
-        - PolicyName: !Sub '${ProjectName}-${Environment}-codebuild'
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - !GetAtt CodeBuildLogsGroup.Arn
-                  - !Sub '${CodeBuildLogsGroup.Arn}:*'
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:GetObjectVersion
-                  - s3:GetBucketVersioning
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt PipelineArtifactsBucket.Arn
-                  - !Sub '${PipelineArtifactsBucket.Arn}/*'
-              - Effect: Allow
-                Action:
-                  - s3:CreateBucket
-                Resource: '*'
-                Condition:
-                  StringEquals:
-                    s3:bucketName: !Sub 'taskcat-${ProjectName}-${Environment}-${AWS::AccountId}-${AWS::Region}'
-              - Effect: Allow
-                Action:
-                  - s3:DeleteBucket
-                  - s3:GetBucketLocation
-                  - s3:GetBucketVersioning
-                  - s3:ListBucket
-                Resource: !Sub 'arn:aws:s3:::taskcat-${ProjectName}-${Environment}-${AWS::AccountId}-${AWS::Region}'
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:GetObjectVersion
-                Resource: !Sub 'arn:aws:s3:::taskcat-${ProjectName}-${Environment}-${AWS::AccountId}-${AWS::Region}/*'
-              - Effect: Allow
-                Action:
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:CreateStack
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:DeleteStack
-                  - cloudformation:DescribeChangeSet
-                  - cloudformation:DescribeStackEvents
-                  - cloudformation:DescribeStackResources
-                  - cloudformation:ValidateTemplate
-                  - cloudformation:DescribeStacks
-                  - cloudformation:ExecuteChangeSet
-                  - cloudformation:GetTemplateSummary
-                  - cloudformation:ListStackResources
-                  - cloudformation:ListStacks
-                  - cloudformation:UpdateStack
-                Resource: '*'
+        - arn:aws:iam::aws:policy/AdministratorAccess
       Tags:
         - Key: Project
           Value: !Ref ProjectName
@@ -236,9 +164,7 @@ Resources:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Sub '${ProjectName}-${Environment}-validate'
-      Description: !Sub 'Validates infrastructure as code for ${ProjectName}-${Environment}'
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      TimeoutInMinutes: !Ref BuildTimeout
       Artifacts:
         Type: CODEPIPELINE
       Environment:
@@ -251,12 +177,14 @@ Resources:
             Value: !Ref ProjectName
           - Name: ENVIRONMENT
             Value: !Ref Environment
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
+      TimeoutInMinutes: !Ref BuildTimeout
       LogsConfig:
         CloudWatchLogs:
-          GroupName: !Ref CodeBuildLogsGroup
           Status: ENABLED
       Tags:
         - Key: Project
@@ -273,7 +201,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service: codepipeline.amazonaws.com
-            Action: 'sts:AssumeRole'
+            Action: sts:AssumeRole
       Policies:
         - PolicyName: !Sub '${ProjectName}-${Environment}-codepipeline'
           PolicyDocument:
@@ -378,7 +306,6 @@ Resources:
                 TemplatePath: !Sub 'BuildArtifact::${CloudFormationTemplateFile}'
                 TemplateConfiguration: !Sub 'BuildArtifact::${CloudFormationParametersFile}'
                 Capabilities: CAPABILITY_NAMED_IAM
-                ReplaceOnFailure: false
               InputArtifacts:
                 - Name: BuildArtifact
 

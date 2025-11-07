@@ -20,6 +20,10 @@
     "ParameterValue": "10.0.2.0/24"
   },
   {
+    "ParameterKey": "AvailabilityZone",
+    "ParameterValue": "ap-southeast-1a"
+  },
+  {
     "ParameterKey": "KeyName",
     "ParameterValue": "nt548_group6"
   },

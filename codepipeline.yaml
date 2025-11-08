@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/goformation/master/schema/cloudformation.schema.json
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  NT548 LAB02 B2 - Continuous delivery pipeline with AWS CodePipeline and CodeBuild to validate and deploy CloudFormation infrastructure.
+  NT548 LAB02 B2 - Continuous delivery pipeline with AWS CodePipeline and CodeBuild
+  to validate and deploy CloudFormation infrastructure.
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -45,7 +46,7 @@ Metadata:
       BuildImage:
         default: "CodeBuild image"
       BuildComputeType:
-        default: "CodeBuild compute"
+        default: "CodeBuild compute type"
       BuildTimeout:
         default: "Build timeout (minutes)"
       CloudFormationTemplateFile:
@@ -168,7 +169,7 @@ Resources:
       Artifacts:
         Type: CODEPIPELINE
       Environment:
-        ComputeType: BUILD_GENERAL1_SMALL
+        ComputeType: !Ref BuildComputeType
         Image: !Ref BuildImage
         Type: LINUX_CONTAINER
         PrivilegedMode: false
@@ -181,6 +182,7 @@ Resources:
             Value: !Ref AWS::Region
       Source:
         Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
       TimeoutInMinutes: !Ref BuildTimeout
       LogsConfig:
         CloudWatchLogs:
@@ -212,6 +214,7 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
+
               - Effect: Allow
                 Action:
                   - s3:PutObject
@@ -222,16 +225,19 @@ Resources:
                 Resource:
                   - !GetAtt PipelineArtifactsBucket.Arn
                   - !Sub '${PipelineArtifactsBucket.Arn}/*'
+
               - Effect: Allow
                 Action:
                   - codebuild:BatchGetBuilds
                   - codebuild:StartBuild
                 Resource: !GetAtt CodeBuildProject.Arn
+
               - Effect: Allow
                 Action:
                   - iam:PassRole
                 Resource:
                   - !GetAtt CodeBuildServiceRole.Arn
+
               - Effect: Allow
                 Action:
                   - cloudformation:CreateStack
@@ -242,6 +248,7 @@ Resources:
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ValidateTemplate
                 Resource: '*'
+
               - Effect: Allow
                 Action:
                   - codestar-connections:UseConnection
@@ -277,6 +284,7 @@ Resources:
                 OutputArtifactFormat: CODEBUILD_CLONE_REF
               OutputArtifacts:
                 - Name: SourceArtifact
+
         - Name: Build
           Actions:
             - Name: ValidateTemplates
@@ -291,6 +299,7 @@ Resources:
                 - Name: SourceArtifact
               OutputArtifacts:
                 - Name: BuildArtifact
+
         - Name: Deploy
           Actions:
             - Name: DeployInfrastructure

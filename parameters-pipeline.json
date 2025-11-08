@@ -1,0 +1,9 @@
+{
+  "Parameters": {
+    "ProjectName": "nt548-lab02",
+    "Environment": "dev",
+    "CloudFormationStackName": "nt548-lab02-network",
+    "OperatorIP": "172.20.10.3/32",
+    "KeyName": "nt548-lab02-key"
+  }
+}

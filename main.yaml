@@ -113,7 +113,7 @@ Parameters:
 
   OperatorIP:
     Type: String
-    Default: 192.168.1.36/32
+    Default: 172.20.10.3/32
     AllowedPattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$'
     Description: Trusted operator IP address (CIDR) allowed to SSH to bastion.
 

@@ -29,7 +29,7 @@
   },
   {
     "ParameterKey": "CloudFormationParametersFile",
-    "ParameterValue": "parameters.json"
+    "ParameterValue": "parameters-pipeline.json"
   },
   {
     "ParameterKey": "BuildImage",

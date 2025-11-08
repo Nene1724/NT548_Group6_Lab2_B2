@@ -201,6 +201,7 @@ Resources:
                 TemplatePath: !Sub 'SourceArtifact::${CloudFormationTemplateFile}'
                 TemplateConfiguration: !Sub 'SourceArtifact::${CloudFormationParametersFile}'
                 Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !GetAtt CodePipelineServiceRole.Arn
               InputArtifacts:
                 - Name: SourceArtifact
 

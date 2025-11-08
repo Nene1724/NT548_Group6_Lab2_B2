@@ -131,7 +131,6 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
-              # Đọc/ghi artifact trên S3
               - Effect: Allow
                 Action:
                   - s3:PutObject

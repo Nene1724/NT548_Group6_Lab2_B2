@@ -168,7 +168,7 @@ Resources:
       Artifacts:
         Type: CODEPIPELINE
       Environment:
-        ComputeType: !Ref BuildComputeType
+        ComputeType: BUILD_GENERAL1_SMALL
         Image: !Ref BuildImage
         Type: LINUX_CONTAINER
         PrivilegedMode: false
@@ -179,9 +179,6 @@ Resources:
             Value: !Ref Environment
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec.yml
       TimeoutInMinutes: !Ref BuildTimeout
       LogsConfig:
         CloudWatchLogs:

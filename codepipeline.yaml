@@ -1,8 +1,8 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/goformation/master/schema/cloudformation.schema.json
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  NT548 LAB02 B2 - Continuous delivery pipeline with AWS CodePipeline and CodeBuild
-  to validate and deploy CloudFormation infrastructure.
+  NT548 LAB02 B2 - Continuous delivery pipeline with AWS CodePipeline
+  to deploy CloudFormation infrastructure from GitHub (no CodeBuild required).
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -20,12 +20,6 @@ Metadata:
           - RepositoryId
           - BranchName
       - Label:
-          default: "Build"
-        Parameters:
-          - BuildImage
-          - BuildComputeType
-          - BuildTimeout
-      - Label:
           default: "Deploy Targets"
         Parameters:
           - CloudFormationTemplateFile
@@ -40,15 +34,9 @@ Metadata:
       CodeStarConnectionArn:
         default: "CodeStar connection ARN"
       RepositoryId:
-        default: "GitHub/CodeCommit repo (owner/name)"
+        default: "GitHub repo (owner/name)"
       BranchName:
         default: "Source branch"
-      BuildImage:
-        default: "CodeBuild image"
-      BuildComputeType:
-        default: "CodeBuild compute type"
-      BuildTimeout:
-        default: "Build timeout (minutes)"
       CloudFormationTemplateFile:
         default: "Template path inside repo"
       CloudFormationParametersFile:
@@ -77,13 +65,13 @@ Parameters:
   CodeStarConnectionArn:
     Type: String
     Description: >
-      AWS CodeStar Connections ARN that links the pipeline to the source repository (GitHub or Bitbucket).
+      AWS CodeStar Connections ARN that links the pipeline to the source repository (GitHub).
 
   RepositoryId:
     Type: String
     Default: Nene1724/NT548_Group6_Lab2_B2
     Description: >
-      Repository identifier in the form owner/name (for GitHub) or the CodeCommit repository name.
+      GitHub repository in the form owner/name.
 
   BranchName:
     Type: String
@@ -99,27 +87,6 @@ Parameters:
     Type: String
     Default: parameters.json
     Description: Relative path to the parameters JSON file consumed by the deploy action.
-
-  BuildImage:
-    Type: String
-    Default: aws/codebuild/standard:7.0
-    Description: Docker image for the CodeBuild environment.
-
-  BuildComputeType:
-    Type: String
-    Default: BUILD_GENERAL1_SMALL
-    AllowedValues:
-      - BUILD_GENERAL1_SMALL
-      - BUILD_GENERAL1_MEDIUM
-      - BUILD_GENERAL1_LARGE
-    Description: Compute type for the CodeBuild project.
-
-  BuildTimeout:
-    Type: Number
-    Default: 20
-    MinValue: 5
-    MaxValue: 120
-    Description: Timeout in minutes for the CodeBuild project.
 
 Resources:
 
@@ -143,56 +110,6 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  CodeBuildServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codebuild.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AdministratorAccess
-      Tags:
-        - Key: Project
-          Value: !Ref ProjectName
-        - Key: Environment
-          Value: !Ref Environment
-
-  CodeBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: !Sub '${ProjectName}-${Environment}-validate'
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        ComputeType: !Ref BuildComputeType
-        Image: !Ref BuildImage
-        Type: LINUX_CONTAINER
-        PrivilegedMode: false
-        EnvironmentVariables:
-          - Name: PROJECT_NAME
-            Value: !Ref ProjectName
-          - Name: ENVIRONMENT
-            Value: !Ref Environment
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AWS::Region
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: buildspec.yml
-      TimeoutInMinutes: !Ref BuildTimeout
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-      Tags:
-        - Key: Project
-          Value: !Ref ProjectName
-        - Key: Environment
-          Value: !Ref Environment
-
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -208,13 +125,14 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              # Ghi log
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
-
+              # Đọc/ghi artifact trên S3
               - Effect: Allow
                 Action:
                   - s3:PutObject
@@ -225,19 +143,7 @@ Resources:
                 Resource:
                   - !GetAtt PipelineArtifactsBucket.Arn
                   - !Sub '${PipelineArtifactsBucket.Arn}/*'
-
-              - Effect: Allow
-                Action:
-                  - codebuild:BatchGetBuilds
-                  - codebuild:StartBuild
-                Resource: !GetAtt CodeBuildProject.Arn
-
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !GetAtt CodeBuildServiceRole.Arn
-
+              # Triển khai bằng CloudFormation
               - Effect: Allow
                 Action:
                   - cloudformation:CreateStack
@@ -248,7 +154,7 @@ Resources:
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ValidateTemplate
                 Resource: '*'
-
+              # Lấy source từ CodeStar Connection
               - Effect: Allow
                 Action:
                   - codestar-connections:UseConnection
@@ -281,24 +187,9 @@ Resources:
                 ConnectionArn: !Ref CodeStarConnectionArn
                 FullRepositoryId: !Ref RepositoryId
                 BranchName: !Ref BranchName
-                OutputArtifactFormat: CODEBUILD_CLONE_REF
+                OutputArtifactFormat: CODE_ZIP
               OutputArtifacts:
                 - Name: SourceArtifact
-
-        - Name: Build
-          Actions:
-            - Name: ValidateTemplates
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Provider: CodeBuild
-                Version: '1'
-              Configuration:
-                ProjectName: !Ref CodeBuildProject
-              InputArtifacts:
-                - Name: SourceArtifact
-              OutputArtifacts:
-                - Name: BuildArtifact
 
         - Name: Deploy
           Actions:
@@ -311,11 +202,11 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 StackName: !Ref CloudFormationStackName
-                TemplatePath: !Sub 'BuildArtifact::${CloudFormationTemplateFile}'
-                TemplateConfiguration: !Sub 'BuildArtifact::${CloudFormationParametersFile}'
+                TemplatePath: !Sub 'SourceArtifact::${CloudFormationTemplateFile}'
+                TemplateConfiguration: !Sub 'SourceArtifact::${CloudFormationParametersFile}'
                 Capabilities: CAPABILITY_NAMED_IAM
               InputArtifacts:
-                - Name: BuildArtifact
+                - Name: SourceArtifact
 
 Outputs:
   PipelineName:
@@ -326,14 +217,6 @@ Outputs:
     Description: S3 bucket that stores CodePipeline artifacts.
     Value: !Ref PipelineArtifactsBucket
 
-  CodeBuildProjectName:
-    Description: Name of the CodeBuild project used for validations.
-    Value: !Ref CodeBuildProject
-
   CodePipelineServiceRoleArn:
     Description: IAM role used by CodePipeline.
     Value: !GetAtt CodePipelineServiceRole.Arn
-
-  CodeBuildServiceRoleArn:
-    Description: IAM role used by CodeBuild.
-    Value: !GetAtt CodeBuildServiceRole.Arn

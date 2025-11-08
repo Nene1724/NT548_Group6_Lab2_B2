@@ -125,7 +125,6 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              # Ghi log
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -143,7 +142,6 @@ Resources:
                 Resource:
                   - !GetAtt PipelineArtifactsBucket.Arn
                   - !Sub '${PipelineArtifactsBucket.Arn}/*'
-              # Triển khai bằng CloudFormation
               - Effect: Allow
                 Action:
                   - cloudformation:CreateStack
@@ -154,7 +152,6 @@ Resources:
                   - cloudformation:DescribeChangeSet
                   - cloudformation:ValidateTemplate
                 Resource: '*'
-              # Lấy source từ CodeStar Connection
               - Effect: Allow
                 Action:
                   - codestar-connections:UseConnection

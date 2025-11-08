@@ -179,6 +179,8 @@ Resources:
             Value: !Ref Environment
           - Name: AWS_DEFAULT_REGION
             Value: !Ref AWS::Region
+      Source:
+        Type: CODEPIPELINE
       TimeoutInMinutes: !Ref BuildTimeout
       LogsConfig:
         CloudWatchLogs:

@@ -1,0 +1,276 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/awslabs/goformation/master/schema/cloudformation.schema.json
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  NT548 LAB02 B2 - SIMPLIFIED pipeline without CodeBuild (temporary workaround).
+  This is a 2-stage pipeline (Source -> Deploy) that bypasses CodeBuild validation
+  to work around the CodeBuild quota limit issue.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "General"
+        Parameters:
+          - ProjectName
+          - Environment
+          - CloudFormationStackName
+      - Label:
+          default: "Source"
+        Parameters:
+          - CodeStarConnectionArn
+          - RepositoryId
+          - BranchName
+      - Label:
+          default: "Deploy Targets"
+        Parameters:
+          - CloudFormationTemplateFile
+          - CloudFormationParametersFile
+    ParameterLabels:
+      ProjectName:
+        default: "Project name (tags/prefixes)"
+      Environment:
+        default: "Environment label"
+      CloudFormationStackName:
+        default: "Infrastructure stack name"
+      CodeStarConnectionArn:
+        default: "CodeStar connection ARN"
+      RepositoryId:
+        default: "GitHub repo (owner/name)"
+      BranchName:
+        default: "Source branch"
+      CloudFormationTemplateFile:
+        default: "Template path inside repo"
+      CloudFormationParametersFile:
+        default: "Parameters JSON path inside repo"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: nt548-lab02
+    Description: Base name used for resource tags.
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment tag for all resources.
+
+  CloudFormationStackName:
+    Type: String
+    Default: nt548-lab02-network
+    Description: Name of the CloudFormation stack that hosts the infrastructure template.
+
+  CodeStarConnectionArn:
+    Type: String
+    Description: >
+      AWS CodeStar Connections ARN that links the pipeline to the source repository (GitHub).
+
+  RepositoryId:
+    Type: String
+    Default: Nene1724/NT548_Group6_Lab2_B2
+    Description: >
+      GitHub repository in the form owner/name.
+
+  BranchName:
+    Type: String
+    Default: main
+    Description: Source branch for pipeline executions.
+
+  CloudFormationTemplateFile:
+    Type: String
+    Default: main.yaml
+    Description: Relative path (within repository) to the infrastructure template that should be deployed.
+
+  CloudFormationParametersFile:
+    Type: String
+    Default: parameters-pipeline.json
+    Description: Relative path to the parameters JSON file consumed by the deploy action.
+
+Resources:
+
+  PipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  CloudFormationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-${Environment}-cfn-iam'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:CreateInstanceProfile
+                  - iam:DeleteInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:GetInstanceProfile
+                  - iam:TagRole
+                  - iam:UntagRole
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-${Environment}-codepipeline'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt PipelineArtifactsBucket.Arn
+                  - !Sub '${PipelineArtifactsBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:DeleteStack
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !GetAtt CloudFormationServiceRole.Arn
+              - Effect: Allow
+                Action:
+                  - codestar-connections:UseConnection
+                Resource: !Ref CodeStarConnectionArn
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  DeploymentPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-pipeline-simple'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref PipelineArtifactsBucket
+      RestartExecutionOnUpdate: true
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceFromGitHub
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref CodeStarConnectionArn
+                FullRepositoryId: !Ref RepositoryId
+                BranchName: !Ref BranchName
+                OutputArtifactFormat: CODE_ZIP
+              OutputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+
+        - Name: Deploy
+          Actions:
+            - Name: DeployInfrastructure
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                StackName: !Ref CloudFormationStackName
+                TemplatePath: !Sub 'SourceArtifact::${CloudFormationTemplateFile}'
+                TemplateConfiguration: !Sub 'SourceArtifact::${CloudFormationParametersFile}'
+                Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn: !GetAtt CloudFormationServiceRole.Arn
+              InputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+
+Outputs:
+  PipelineName:
+    Description: Name of the simplified pipeline (without CodeBuild).
+    Value: !Ref DeploymentPipeline
+
+  ArtifactBucketName:
+    Description: S3 bucket that stores CodePipeline artifacts.
+    Value: !Ref PipelineArtifactsBucket
+
+  CodePipelineServiceRoleArn:
+    Description: IAM role used by CodePipeline.
+    Value: !GetAtt CodePipelineServiceRole.Arn
+
+  CloudFormationServiceRoleArn:
+    Description: IAM role used by CloudFormation for deployment.
+    Value: !GetAtt CloudFormationServiceRole.Arn
+
+  Note:
+    Description: Important information about this pipeline
+    Value: "This is a SIMPLIFIED pipeline without CodeBuild validation. Replace with full pipeline when quota is approved."

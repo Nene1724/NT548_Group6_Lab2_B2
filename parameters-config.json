@@ -1,0 +1,17 @@
+{
+  "Parameters": {
+    "ProjectName": "nt548-lab02",
+    "Environment": "dev",
+    "VpcCIDR": "10.0.0.0/16",
+    "PublicSubnetCIDR": "10.0.1.0/24",
+    "PrivateSubnetCIDR": "10.0.2.0/24",
+    "AvailabilityZone": "ap-southeast-1a",
+    "KeyName": "nt548_group6",
+    "InstanceType": "t3.micro",
+    "OperatorIP": "172.20.10.3/32",
+    "LatestAmiId": "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64",
+    "BastionInstanceName": "lab02-public",
+    "PrivateInstanceName": "lab02-private",
+    "FlowLogsRetentionInDays": "365"
+  }
+}
